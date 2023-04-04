@@ -4,6 +4,8 @@ import static io.quarkus.deployment.pkg.steps.GraalVM.Distribution.MANDREL;
 import static io.quarkus.deployment.pkg.steps.GraalVM.Distribution.ORACLE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assertions;
@@ -27,10 +29,16 @@ public class GraalVMTest {
                 Version.of(Stream.of(("native-image 17.0.6 2023-01-17\n"
                         + "GraalVM Runtime Environment Mandrel-23.0.0-dev (build 17.0.6+10)\n"
                         + "Substrate VM Mandrel-23.0.0-dev (build 17.0.6+10, serial gc)").split("\\n"))));
+        Map<String, String> releaseProps = Collections.singletonMap("GRAALVM_VERSION", "23.0.0");
+        Map<String, String> releaseProps2 = Collections.singletonMap("GRAALVM_VERSION", "\"23.1.0-dev\"");
         assertVersion(org.graalvm.home.Version.create(23, 0), ORACLE,
                 Version.of(Stream.of(("native-image 20 2023-03-21\n"
-                        + "GraalVM Runtime Environment GraalVM CE (build 20+34-jvmci-23.0-b10)\n"
-                        + "Substrate VM GraalVM CE (build 20+34, serial gc)").split("\\n"))));
+                        + "GraalVM Runtime Environment GraalVM CE (build 20+34)\n"
+                        + "Substrate VM GraalVM CE (build 20+34, serial gc)").split("\\n")), releaseProps));
+        assertVersion(org.graalvm.home.Version.create(23, 1), ORACLE,
+                Version.of(Stream.of(("native-image 20 2023-03-21\n"
+                        + "GraalVM Runtime Environment GraalVM CE (build 20+34)\n"
+                        + "Substrate VM GraalVM CE (build 20+34, serial gc)").split("\\n")), releaseProps2));
         // Older version parsing
         assertVersion(org.graalvm.home.Version.create(20, 1), ORACLE,
                 Version.of(Stream.of("GraalVM Version 20.1.0 (Java Version 11.0.7)")));

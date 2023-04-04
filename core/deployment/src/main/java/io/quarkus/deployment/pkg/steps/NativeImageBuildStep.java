@@ -431,7 +431,8 @@ public class NativeImageBuildStep {
         if (nativeConfig.graalvmHome.isPresent()) {
             File file = Paths.get(nativeConfig.graalvmHome.get(), "bin", executableName).toFile();
             if (file.exists()) {
-                return new NativeImageBuildLocalRunner(file.getAbsolutePath(), outputDir);
+                Path graalHome = Paths.get(nativeConfig.graalvmHome.get());
+                return new NativeImageBuildLocalRunner(file.getAbsolutePath(), outputDir, graalHome.toFile());
             }
         }
 
@@ -453,7 +454,7 @@ public class NativeImageBuildStep {
         if (javaHome != null) {
             File file = new File(javaHome, "bin/" + executableName);
             if (file.exists()) {
-                return new NativeImageBuildLocalRunner(file.getAbsolutePath(), outputDir);
+                return new NativeImageBuildLocalRunner(file.getAbsolutePath(), outputDir, javaHome);
             }
         }
 
@@ -466,7 +467,7 @@ public class NativeImageBuildStep {
                 if (dir.isDirectory()) {
                     File file = new File(dir, executableName);
                     if (file.exists()) {
-                        return new NativeImageBuildLocalRunner(file.getAbsolutePath(), outputDir);
+                        return new NativeImageBuildLocalRunner(file.getAbsolutePath(), outputDir, dir);
                     }
                 }
             }

@@ -1,11 +1,16 @@
 package io.quarkus.deployment.pkg.steps;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -87,6 +92,36 @@ public abstract class NativeImageBuildContainerRunner extends NativeImageBuildRu
         objcopyCommand.add("objcopy " + String.join(" ", args));
         final String[] command = buildCommand("run", containerRuntimeBuildArgs, objcopyCommand);
         runCommand(command, null, null);
+    }
+
+    private String[] catReleaseCmd() {
+        final List<String> containerRuntimeBuildArgs = getContainerRuntimeBuildArgs();
+        Collections.addAll(containerRuntimeBuildArgs, "--entrypoint", "/bin/bash");
+        final ArrayList<String> catReleaseCmd = new ArrayList<>(2);
+        catReleaseCmd.add("-c");
+        catReleaseCmd.add("cat $GRAALVM_HOME/release");
+        return buildCommand("run", containerRuntimeBuildArgs, catReleaseCmd);
+    }
+
+    @Override
+    protected Map<String, String> getGraalVMReleaseProps() {
+        Map<String, String> releaseProps = new HashMap<>();
+        try {
+            Process versionProcess = new ProcessBuilder(catReleaseCmd()).redirectErrorStream(true).start();
+            versionProcess.waitFor();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(versionProcess.getInputStream(), StandardCharsets.UTF_8))) {
+                reader.lines().forEach(line -> {
+                    String[] tokens = line.split("=", 2); // release file is '=' delimited
+                    if (tokens.length == 2) {
+                        releaseProps.put(tokens[0], tokens[1]);
+                    }
+                });
+                return releaseProps;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read '$GRAALVM_HOME/release' from container", e);
+        }
     }
 
     @Override

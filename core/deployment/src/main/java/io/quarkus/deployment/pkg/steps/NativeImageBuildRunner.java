@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +25,7 @@ public abstract class NativeImageBuildRunner {
     public GraalVM.Version getGraalVMVersion() {
         final GraalVM.Version graalVMVersion;
         try {
+            Map<String, String> releaseProps = getGraalVMReleaseProps();
             String[] versionCommand = getGraalVMVersionCommand(Collections.singletonList("--version"));
             log.debugf(String.join(" ", versionCommand).replace("$", "\\$"));
             Process versionProcess = new ProcessBuilder(versionCommand)
@@ -32,7 +34,7 @@ public abstract class NativeImageBuildRunner {
             versionProcess.waitFor();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(versionProcess.getInputStream(), StandardCharsets.UTF_8))) {
-                graalVMVersion = GraalVM.Version.of(reader.lines());
+                graalVMVersion = GraalVM.Version.of(reader.lines(), releaseProps);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to get GraalVM version", e);
@@ -101,6 +103,9 @@ public abstract class NativeImageBuildRunner {
     protected abstract String[] getGraalVMVersionCommand(List<String> args);
 
     protected abstract String[] getBuildCommand(List<String> args);
+
+    // Map representation of '=' delimited values in JDK's release file
+    protected abstract Map<String, String> getGraalVMReleaseProps();
 
     protected boolean objcopyExists() {
         return true;

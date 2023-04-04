@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -14,7 +15,6 @@ public final class GraalVM {
     // Implements version parsing after https://github.com/oracle/graal/pull/6302
     static final class VersionParseHelper {
 
-        private static final String JVMCI_BUILD_PREFIX = "jvmci-";
         private static final String MANDREL_VERS_PREFIX = "Mandrel-";
 
         // Java version info (suitable for Runtime.Version.parse()). See java.lang.VersionProps
@@ -26,7 +26,6 @@ public final class GraalVM {
 
         private static final String VNUM_GROUP = "VNUM";
         private static final String VENDOR_VERSION_GROUP = "VENDOR";
-        private static final String BUILD_INFO_GROUP = "BUILDINFO";
 
         private static final String VENDOR_VERS = "(?<VENDOR>.*)";
         private static final String JDK_DEBUG = "[^\\)]*"; // zero or more of >anything not a ')'<
@@ -45,10 +44,11 @@ public final class GraalVM {
         private static final String VERS_FORMAT = "(?<VERSION>[1-9][0-9]*(\\.[0-9]+)+(-dev\\p{XDigit}*)?)";
         private static final String VERSION_GROUP = "VERSION";
         private static final Pattern VERSION_PATTERN = Pattern.compile(VERS_FORMAT);
+        private static final String GRAALVM_VERS_KEY = "GRAALVM_VERSION";
 
         private static final Version UNKNOWN_VERSION = null;
 
-        static Version parse(List<String> lines) {
+        static Version parse(List<String> lines, Map<String, String> releaseProps) {
             Matcher firstMatcher = FIRST_PATTERN.matcher(lines.get(0));
             Matcher secondMatcher = SECOND_PATTERN.matcher(lines.get(1));
             Matcher thirdMatcher = THIRD_PATTERN.matcher(lines.get(2));
@@ -63,8 +63,10 @@ public final class GraalVM {
 
                 String vendorVersion = secondMatcher.group(VENDOR_VERSION_GROUP);
 
-                String buildInfo = secondMatcher.group(BUILD_INFO_GROUP);
-                String graalVersion = graalVersion(buildInfo);
+                String graalVersion = releaseProps.get(GRAALVM_VERS_KEY);
+                if (graalVersion != null) {
+                    graalVersion = graalVersion.replace("\"", "");
+                }
                 String mandrelVersion = mandrelVersion(vendorVersion);
                 Distribution dist = isMandrel(vendorVersion) ? Distribution.MANDREL : Distribution.ORACLE;
                 String versNum = (dist == Distribution.MANDREL ? mandrelVersion : graalVersion);
@@ -100,18 +102,6 @@ public final class GraalVM {
                 return versMatcher.group(VERSION_GROUP);
             }
             return null;
-        }
-
-        private static String graalVersion(String buildInfo) {
-            if (buildInfo == null) {
-                return null;
-            }
-            int idx = buildInfo.indexOf(JVMCI_BUILD_PREFIX);
-            if (idx < 0) {
-                return null;
-            }
-            String version = buildInfo.substring(idx + JVMCI_BUILD_PREFIX.length());
-            return matchVersion(version);
         }
     }
 
@@ -200,10 +190,14 @@ public final class GraalVM {
         }
 
         static Version of(Stream<String> lines) {
+            return of(lines, Collections.emptyMap());
+        }
+
+        static Version of(Stream<String> lines, Map<String, String> releaseProps) {
             List<String> linesList = toList(lines); // relies on ordering of the stream
             if (linesList.size() == 3) {
                 // Attempt to parse the new 3-line version scheme first.
-                Version v = VersionParseHelper.parse(linesList);
+                Version v = VersionParseHelper.parse(linesList, releaseProps);
                 if (v != VersionParseHelper.UNKNOWN_VERSION) {
                     return v;
                 }
