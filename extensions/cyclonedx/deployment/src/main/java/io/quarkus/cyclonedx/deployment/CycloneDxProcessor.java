@@ -14,6 +14,7 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.AppModelProviderBuildItem;
 import io.quarkus.deployment.builditem.EmbeddedSbomMetadataBuildItem;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
+import io.quarkus.deployment.pkg.NativeConfig;
 import io.quarkus.deployment.pkg.builditem.CurateOutcomeBuildItem;
 import io.quarkus.deployment.pkg.builditem.OutputTargetBuildItem;
 import io.quarkus.deployment.sbom.ApplicationManifestsBuildItem;
@@ -73,7 +74,8 @@ public class CycloneDxProcessor {
             CycloneDxConfig cdxConfig,
             CurateOutcomeBuildItem curateOutcomeBuildItem,
             AppModelProviderBuildItem appModelProviderBuildItem,
-            List<EmbeddedSbomRequestBuildItem> embeddedSbomRequests) {
+            List<EmbeddedSbomRequestBuildItem> embeddedSbomRequests,
+            NativeConfig nativeConfig) {
         if (!cdxConfig.enabled() || !cdxConfig.embedded().enabled() && embeddedSbomRequests.isEmpty()) {
             return;
         }
@@ -83,6 +85,7 @@ public class CycloneDxProcessor {
         if (resourceName == null || resourceName.isEmpty()) {
             throw new IllegalArgumentException("resourceName is not configured for the embedded dependency SBOM");
         }
+        final boolean niToolInfo = nativeConfig.enabled() || nativeConfig.sourcesOnly();
 
         var depInfoProvider = getDependencyInfoProvider(appModelProviderBuildItem);
         List<String> result = CycloneDxSbomGenerator.newInstance()
@@ -94,6 +97,7 @@ public class CycloneDxProcessor {
                 .setSchemaVersion(cdxConfig.schemaVersion().orElse(null))
                 .setIncludeLicenseText(cdxConfig.includeLicenseText())
                 .setPrettyPrint(cdxConfig.prettyPrint())
+                .setNativeToolInfo(niToolInfo)
                 .generateText();
 
         if (result.size() != 1) {
